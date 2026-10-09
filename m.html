@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trading Floor</title>
+<meta name="theme-color" content="#04050d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trading Floor">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #04050d; --ink: #e2f7ff; --muted: #8b98bf; --faint: #5a6694;
+    --cyan: #19e6ff; --magenta: #ff2bd6; --violet: #9b5cff; --mint: #2ff3d0; --pink: #ff4f9a; --amber: #ffd166;
+    --card: rgba(12, 17, 44, .92); --line: rgba(25, 230, 255, .2);
+    --display: "Orbitron", system-ui, sans-serif; --mono: "Share Tech Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { color-scheme: dark; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: radial-gradient(800px 500px at 0% -10%, rgba(25,230,255,.12), transparent 60%),
+         radial-gradient(700px 500px at 110% 110%, rgba(255,43,214,.12), transparent 60%), var(--bg);
+         background-attachment: fixed; color: var(--ink); font: 15px/1.45 -apple-system, system-ui, "Segoe UI", sans-serif;
+         padding: env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom)); }
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+           background: rgba(4, 5, 13, .88); backdrop-filter: saturate(1.4) blur(10px); -webkit-backdrop-filter: saturate(1.4) blur(10px);
+           border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font: 700 16px var(--display); letter-spacing: 1.5px; color: var(--cyan); flex: 1; }
+  header .upd { font: 12px var(--mono); color: var(--muted); }
+  button { font: 13px var(--mono); color: var(--cyan); background: rgba(25,230,255,.08); border: 1px solid rgba(25,230,255,.45);
+           border-radius: 8px; padding: 7px 12px; }
+  nav { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px 2px; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  nav a { flex: none; font: 12px var(--mono); color: #c9d3f5; text-decoration: none; border: 1px solid rgba(155,92,255,.4);
+          border-radius: 999px; padding: 5px 11px; background: rgba(155,92,255,.08); }
+  main { padding: 6px 16px; display: flex; flex-direction: column; gap: 14px; max-width: 720px; margin: 0 auto; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  h2 { margin: 0 0 10px; font: 600 12px var(--mono); letter-spacing: 1.4px; text-transform: uppercase; color: var(--cyan); }
+  .big { font: 700 32px var(--display); letter-spacing: .5px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .row { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 10px; }
+  .k { font: 11px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .v { font: 15px var(--mono); }
+  .up { color: var(--mint); } .down { color: var(--pink); } .warn { color: var(--amber); }
+  .card { border: 1px solid rgba(25,230,255,.16); border-radius: 12px; padding: 12px; margin-top: 10px; background: rgba(25,230,255,.03); }
+  .card.long { border-left: 3px solid var(--mint); } .card.short { border-left: 3px solid var(--pink); }
+  .pill { display: inline-block; font: 11px var(--mono); border-radius: 999px; padding: 2px 8px; border: 1px solid currentColor; margin: 2px 4px 2px 0; }
+  .pair { font: 700 16px var(--mono); }
+  .pairs .p { display: grid; grid-template-columns: 72px 1fr; gap: 4px 10px; padding: 10px 0; border-top: 1px solid rgba(25,230,255,.08); }
+  .pairs .p:first-of-type { border-top: none; }
+  details { margin-top: 8px; } summary { cursor: pointer; color: var(--violet); font: 13px var(--mono); }
+  .empty { color: var(--faint); font-style: italic; }
+  .note { border-left: 2px solid var(--magenta); padding: 6px 10px; background: rgba(255,43,214,.06); border-radius: 0 8px 8px 0; margin: 8px 0; }
+  svg { display: block; width: 100%; height: 64px; }
+  select { font: 14px var(--mono); color: var(--cyan); background: #0a0f28; border: 1px solid var(--line); border-radius: 8px; padding: 8px; width: 100%; }
+  .tv { display: inline-block; font: 10.5px var(--mono); border-radius: 6px; padding: 1px 5px; margin: 2px 3px 0 0; background: rgba(255,255,255,.04); }
+  .tvlink { font: 12px var(--mono); color: var(--violet); text-decoration: none; border: 1px solid rgba(155,92,255,.5); border-radius: 6px; padding: 2px 8px; margin-left: 6px; }
+  .tvbox iframe, #tvbox iframe { color-scheme: normal; }
+  input { width: 100%; font: 14px var(--mono); color: var(--ink); background: #0a0f28; border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin: 8px 0; }
+  .foot { color: var(--faint); font: 12px var(--mono); padding: 6px 16px 20px; max-width: 720px; margin: 0 auto; }
+  #lock { display: none; }
+</style>
+</head>
+<body>
+<header><h1>Trading Floor</h1><span class="upd" id="upd"></span><button id="refresh" type="button">Refresh</button></header>
+<nav><a href="#" data-go="account">$100</a><a href="#" data-go="egx">EGX</a><a href="#" data-go="open">Open</a><a href="#" data-go="pairs">Pairs</a><a href="#" data-go="chart">Live chart</a><a href="#" data-go="meeting">Judge</a><a href="#" data-go="views">Agents</a><a href="#" data-go="closed">Closed</a><a href="#" data-go="desks">Gold &amp; EGX</a><a href="#" data-go="how">How</a><a href="index.html" id="full">Full dashboard</a></nav>
+<main id="app">
+  <section id="lock"><h2>Unlock</h2>
+    <p>This page needs your private link once (the part after <b>#k=</b> unlocks the encrypted data and never leaves your phone).</p>
+    <input id="keyin" placeholder="Paste your private link here" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="keybtn" type="button">Unlock</button><p class="sub" id="lockmsg"></p></section>
+  <section id="account"></section>
+  <section id="egx"></section>
+  <section id="open"></section>
+  <section id="arb"></section>
+  <section id="pairs" class="pairs"></section>
+  <section id="chart"><h2>Live chart (TradingView)</h2>
+    <select id="chartsym" aria-label="Instrument"></select>
+    <div id="tvbox" style="height:420px;margin-top:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden"></div>
+    <p class="sub">The same live feed the agents follow: Capital.com's own prices on TradingView for forex, Bitstamp for BTC, OANDA for gold.</p></section>
+  <section id="meeting"></section>
+  <section id="views"></section>
+  <section id="closed"></section>
+  <section id="desks"></section>
+  <section id="how"></section>
+</main>
+<p class="foot">Paper trading for research and education, not financial advice. Swing desk: $100 shared budget (forex, BTC and gold), 1:100, costs ignored by design.</p>
+<script src="phone.js"></script>
+<script src="charts.js"></script>
+<script src="m.js"></script>
+</body>
+</html>
