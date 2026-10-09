@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="floor-version" content="bd28b83bd6">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading Floor</title>
+<meta name="theme-color" content="#0f1218">
+<style>
+  /* One calm dark palette (owner 2026-11-04: "keep the color way simple and efficient"): one surface, one accent,
+     green and red only for gains and losses, amber only for warnings. The ship keeps its own space look. */
+  :root {
+    color-scheme: dark;
+    --bg: #0f1218; --surface: #161b23; --surface-2: #1c222c; --line: #262d3a; --line-2: #333c4c;
+    --ink: #e6e9ef; --muted: #9aa4b5; --faint: #7a8496;
+    --accent: #4a8fe8; --accent-soft: rgba(74, 143, 232, .14);
+    --up: #34c47c; --down: #f0605d; --warn: #e8b13a;
+    --up-soft: rgba(52, 196, 124, .13); --down-soft: rgba(240, 96, 93, .13); --warn-soft: rgba(232, 177, 58, .13);
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --head-h: 106px;
+    /* read by charts.js and valview.js (the phone page keeps their own defaults) */
+    --chart-line: #4a8fe8; --chart-surface: #161b23; --chart-grid: rgba(230, 233, 239, .07); --chart-axis: #9aa4b5;
+    --chart-ink: #e6e9ef; --chart-good: #34c47c; --chart-bad: #f0605d; --chart-tip-bg: #1c222c; --chart-tip-line: #333c4c;
+    --chart-focus: #4a8fe8; --chart-link: #4a8fe8; --chart-rule: #262d3a;
+    --fv-rule: #262d3a; --fv-sticky: #161b23; --fv-fc: rgba(74, 143, 232, .08); --fv-head: #9aa4b5; --fv-link: #4a8fe8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  html.home { overflow: hidden; }
+  body { background: var(--bg); color: var(--ink); font: 14px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  button { font: 500 13px var(--font); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-2);
+           border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button:focus-visible, [tabindex]:focus-visible, a:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  select { font: 13px var(--font); color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 8px; padding: 5px 8px; }
+
+  /* -- the top: brand, status, every section's tab, then the section's pages -- */
+  header.top { position: sticky; top: 0; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px 4px; flex-wrap: wrap; }
+  .brand { font-weight: 650; font-size: 16px; letter-spacing: .2px; }
+  .status { color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+  .grow { flex: 1; }
+  .bar .link { font-size: 12.5px; }
+  .bar button { padding: 4px 10px; font-size: 12.5px; }
+  nav.tabs { display: flex; gap: 2px; padding: 0 14px; overflow-x: auto; scrollbar-width: none; }
+  nav.tabs::-webkit-scrollbar, nav.subtabs::-webkit-scrollbar { display: none; }
+  nav.tabs .grp { align-self: center; color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+                  padding: 0 4px 0 12px; white-space: nowrap; }
+  nav.tabs .grp.sep { width: 1px; height: 18px; padding: 0; margin: 0 8px; background: var(--line-2); }
+  nav.tabs button { background: none; border: 0; border-radius: 0; color: var(--muted); padding: 10px 10px 9px; white-space: nowrap;
+                    font-size: 13.5px; border-bottom: 2px solid transparent; }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  nav.subtabs { display: flex; gap: 6px; padding: 8px 20px 10px; overflow-x: auto; scrollbar-width: none; border-top: 1px solid var(--line); }
+  nav.subtabs[hidden] { display: none; }
+  nav.subtabs button { background: none; border: 1px solid transparent; border-radius: 999px; color: var(--muted); padding: 4px 12px;
+                       white-space: nowrap; font-size: 13px; }
+  nav.subtabs button:hover { color: var(--ink); }
+  nav.subtabs button[aria-selected="true"] { color: var(--ink); background: var(--accent-soft); border-color: rgba(74, 143, 232, .45); }
+  .pill { display: inline-block; font-size: 12px; border-radius: 999px; padding: 1px 9px; }
+  .pill.bad { background: var(--down-soft); color: var(--down); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+
+  /* -- pages -- */
+  .view[hidden] { display: none !important; }
+  .page { max-width: 1320px; margin: 0 auto; padding: 22px 20px 30px; }
+  .page-head h2 { font-size: 22px; font-weight: 650; margin: 0 0 4px; }
+  .page-head p { margin: 0 0 18px; color: var(--muted); max-width: 980px; }
+  .block { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 0 0 16px; }
+  .block > h3:first-child { margin-top: 0; }
+  h3 { font-size: 15px; font-weight: 600; margin: 18px 0 8px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .cols > .block { margin: 0; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .big { font-size: 28px; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); } .down { color: var(--down); } .warnc { color: var(--warn); }
+  .empty { color: var(--faint); font-style: italic; }
+  .note { border-left: 3px solid var(--accent); background: var(--surface-2); padding: 7px 12px; border-radius: 0 8px 8px 0; margin: 8px 0; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13.5px; }
+  .kv > span:nth-child(odd) { color: var(--muted); }
+  .tag { display: inline-block; font-size: 11.5px; font-weight: 600; border-radius: 6px; padding: 1px 7px; margin-right: 6px;
+         background: var(--surface-2); color: var(--muted); }
+  .tag.buy { background: var(--up-soft); color: var(--up); }
+  .tag.sell { background: var(--down-soft); color: var(--down); }
+  .tag.hold { background: var(--accent-soft); color: #9dc2f5; }
+  .stamp { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 6px; border: 1px solid currentColor; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; white-space: nowrap; }
+  tbody tr:hover { background: rgba(255, 255, 255, .02); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  /* a row's long text sits on a full-width line under it (app.js table()) */
+  table.has-detail tr.main td { border-bottom: 0; padding-bottom: 2px; }
+  table.has-detail tbody tr:hover { background: none; }
+  tr.detail td { padding-top: 0; padding-bottom: 12px; }
+  tr.detail .dl { margin: 3px 0; max-width: 1040px; line-height: 1.55; }
+  tr.detail .dk { color: var(--faint); font-size: 12px; margin-right: 4px; }
+  .todo { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .todo li { border: 1px solid var(--line); border-left: 3px solid var(--up); border-radius: 8px; padding: 8px 10px; background: var(--surface-2); }
+  .todo li.sell { border-left-color: var(--down); }
+  .todo .act { font-weight: 600; }
+  .todo b { font-weight: 600; }
+  .transcript p { margin: 4px 0; } .transcript b { min-width: 150px; display: inline-block; color: var(--muted); }
+  .bar-meter { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+  .bar-meter > i { display: block; height: 100%; background: var(--accent); }
+  details > summary { cursor: pointer; }
+  code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  ul, ol { padding-left: 20px; }
+  .valrow { cursor: pointer; } .valrow:hover td { background: var(--accent-soft); }
+  .valbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 6px 0 10px; }
+  svg.spark polyline { stroke: var(--chart-line); }
+
+  /* -- home: the introduction, one slide per scroll of the mouse wheel -- */
+  .deck-wrap { position: relative; }
+  .deck { position: relative; height: calc(100vh - var(--head-h)); height: calc(100dvh - var(--head-h)); overflow-y: auto;
+          scroll-snap-type: y mandatory; overscroll-behavior: contain; scrollbar-width: none; outline: none; }
+  .deck::-webkit-scrollbar { display: none; }
+  /* at least one screen tall; a slide with more than a screen of content grows instead of spilling into the next */
+  .slide { min-height: 100%; scroll-snap-align: start; scroll-snap-stop: always; display: flex; align-items: center; justify-content: center;
+           padding: 28px 72px 28px 28px; border-bottom: 1px solid var(--line); }
+  .slide-in { width: 100%; max-width: 1100px; }
+  .kicker { color: var(--accent); font-size: 12.5px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; margin: 0 0 8px; }
+  .slide h1 { font-size: clamp(34px, 5.5vw, 60px); line-height: 1.05; margin: 0 0 14px; font-weight: 700; letter-spacing: -.5px; }
+  .slide h2 { font-size: clamp(24px, 3.2vw, 36px); line-height: 1.15; margin: 0 0 16px; font-weight: 650; }
+  .lead { font-size: clamp(15px, 1.5vw, 18px); color: var(--muted); max-width: 760px; margin: 0 0 24px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .stat > span { display: block; color: var(--muted); font-size: 12.5px; }
+  .stat b { display: block; font-size: 24px; font-weight: 650; margin: 2px 0; font-variant-numeric: tabular-nums; }
+  .stat em { font-style: normal; font-size: 12.5px; color: var(--muted); }
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: grid; grid-template-columns: minmax(110px, 1.1fr) minmax(0, 3fr) auto; gap: 14px; align-items: baseline;
+         background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  .row .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .go { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .tile { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .tile:hover { border-color: var(--accent); }
+  .tile b { display: block; font-size: 15px; margin-bottom: 4px; }
+  .tile span { color: var(--muted); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .scroll-hint { color: var(--faint); font-size: 13px; margin-top: 28px; }
+  .dots { position: absolute; right: 22px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; }
+  .dots button { width: 10px; height: 10px; padding: 0; border-radius: 50%; background: var(--line-2); border: 0; }
+  .dots button[aria-current="true"] { background: var(--accent); }
+  .clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* -- the ship -- */
+  .ship-wrap { padding: 12px 20px 16px; }
+  .ship-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; min-height: 34px; }
+  .ship-bar .hint { color: var(--muted); font-size: 12.5px; }
+  .ship-bar .gap { flex: 1; }
+  canvas#office { width: 100%; height: calc(100vh - var(--head-h) - 72px); height: calc(100dvh - var(--head-h) - 72px); min-height: 380px;
+                  display: block; border-radius: 12px; border: 1px solid var(--line); background: #02030a; touch-action: none; outline: none; }
+  .ship-stage { position: relative; }
+  .ship-stage .fs-bar { display: none; }
+  .ship-stage.full { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; background: #010008; width: 100vw; height: 100vh; height: 100dvh; }
+  .ship-stage.full .fs-bar { display: flex; flex: none; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none;
+                             padding: calc(6px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 6px calc(10px + env(safe-area-inset-left));
+                             background: rgba(1, 0, 8, .94); border-bottom: 1px solid var(--line-2); }
+  .ship-stage.full .fs-bar b { font-weight: 600; margin-right: auto; white-space: nowrap; }
+  .ship-stage.full .fs-bar button { flex: none; white-space: nowrap; }
+  html.ship-full-open, html.ship-full-open body { overflow: hidden; }
+  .ship-stage.full canvas#office { flex: 1; min-height: 0; height: auto; border: 0; border-radius: 0; }
+
+  /* -- markets (TradingView) -- */
+  .tv-tape { min-height: 46px; margin-bottom: 12px; }
+  .live-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; }
+  .tv-box { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+  .tv-chart, .tv-ta { height: 560px; }
+  .tv-tape iframe, .tv-box iframe { color-scheme: normal; }
+
+  dialog { color: var(--ink); background: var(--surface); border: 1px solid var(--line-2); border-radius: 12px; max-width: 560px;
+           width: calc(100% - 32px); padding: 18px 20px; }
+  dialog h3 { font-size: 17px; }
+  dialog.wide { max-width: 1120px; width: calc(100% - 24px); max-height: 92vh; }
+  dialog::backdrop { background: rgba(5, 7, 11, .7); }
+  .nodata { padding: 60px 20px; text-align: center; }
+  footer.foot { color: var(--faint); font-size: 12px; padding: 4px 20px 22px; max-width: 1320px; margin: 0 auto; }
+  html.home footer.foot { display: none; }
+
+  /* Phones (owner 2026-11-05): no boxes, and a table's rows become short blocks instead of squeezed columns */
+  @media (max-width: 700px) {
+    .page .block { background: none; border: 0; border-radius: 0; padding: 4px 0 20px; margin: 0 0 18px; border-bottom: 1px solid var(--line); }
+    .page .block:last-child { border-bottom: 0; }
+    .page .cols { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .tablewrap { overflow: visible; }
+    .tablewrap table, .tablewrap tbody { display: block; width: 100%; }
+    .tablewrap thead { display: none; }
+    .tablewrap tr { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 18px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .tablewrap tr:last-child { border-bottom: 0; }
+    .tablewrap tbody tr:hover, .valrow:hover td { background: none; }
+    .tablewrap td { display: block; padding: 0; border: 0; text-align: left; min-width: 0; max-width: 100%; font-size: 14px; }
+    .tablewrap td.num { text-align: left; }
+    .tablewrap td::before { content: attr(data-label); display: block; color: var(--faint); font-size: 11.5px; line-height: 1.4; }
+    .tablewrap td:first-child { flex-basis: 100%; font-size: 15.5px; }
+    .tablewrap td:first-child::before, .tablewrap td[data-label=""]::before { display: none; }
+    .tablewrap td.blank { display: none; }
+    .tablewrap td .sub { font-size: 12.5px; }
+    .tablewrap tr.main { border-bottom: 0; padding-bottom: 4px; }
+    .tablewrap tr.detail { padding-top: 0; }
+    .tablewrap tr.detail td { flex-basis: 100%; font-size: 14px; line-height: 1.55; }
+    .tablewrap tr.detail .dl { margin: 6px 0 0; }
+    .tablewrap tr.detail .dk { display: block; color: var(--faint); font-size: 11.5px; }
+  }
+  @media (max-width: 900px) {
+    .live-grid { grid-template-columns: minmax(0, 1fr); }
+    .tv-chart { height: 420px; } .tv-ta { height: 460px; }
+    .slide { padding: 22px 46px 22px 18px; }
+    .row { grid-template-columns: minmax(0, 1fr) auto; } .row > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  }
+  @media (max-width: 560px) {
+    .bar { padding: 8px 14px 2px; gap: 4px 10px; } nav.tabs { padding: 0 8px; } nav.subtabs { padding: 8px 14px 10px; }
+    .bar .link, .status > span:nth-child(2) { display: none; }
+    .bar .grow { order: 1; } .bar button { order: 2; } .status { order: 3; flex-basis: 100%; font-size: 12px; }
+    .page { padding: 16px 14px 24px; } .block { padding: 14px; }
+    .ship-wrap { padding: 10px 10px 12px; } .ship-bar .hint { display: none; }
+    .dots { right: 8px; }
+    .slide { padding: 20px 30px 20px 16px; }
+    .slide h1 { font-size: 34px; } .slide h2 { font-size: 24px; margin-bottom: 12px; } .lead { font-size: 14.5px; margin-bottom: 16px; }
+    .stats { grid-template-columns: 1fr 1fr; gap: 8px; } .stat { padding: 10px 12px; } .stat b { font-size: 19px; }
+    .scroll-hint { margin-top: 14px; }
+  }
+  @media (max-height: 700px) and (min-width: 561px) {
+    .slide h1 { font-size: 40px; } .slide h2 { font-size: 26px; margin-bottom: 10px; } .lead { margin-bottom: 14px; }
+    .stat b { font-size: 20px; } .scroll-hint { margin-top: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .deck { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<header class="top" id="top">
+  <div class="bar">
+    <span class="brand">Trading Floor</span>
+    <span class="status" id="status"></span>
+    <span class="grow"></span>
+    <a class="link" href="m.html" id="phone-page">Phone page</a>
+    <button id="refresh" type="button" title="Reload the latest data">Refresh</button>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections"></nav>
+  <nav class="subtabs" id="subtabs" role="tablist" aria-label="Pages in this section" hidden></nav>
+</header>
+
+<div id="nodata" class="nodata" hidden>
+  <p class="big">No data yet</p>
+  <p>Run the desks once to fill this page: <code>python run.py all</code> from the <code>trading_floor</code> folder.</p>
+</div>
+
+<main id="app" hidden>
+  <section class="view" id="view-home" hidden aria-label="Introduction">
+    <div class="deck-wrap"><div class="deck" id="deck" tabindex="-1"></div><nav class="dots" id="dots" aria-label="Slides"></nav></div>
+  </section>
+
+  <section class="view ship-wrap" id="view-ship" hidden aria-label="The ship">
+    <div class="ship-bar">
+      <button type="button" id="replay-fx">Replay swing review</button>
+      <button type="button" id="replay-egx">Replay EGX review</button>
+      <button type="button" id="replay-gold" hidden>Replay gold meeting</button>
+      <label class="sub">Go to <select id="ship-goto"></select></label>
+      <span class="gap"></span>
+      <button type="button" id="ship-out" aria-label="Zoom out">&minus;</button><button type="button" id="ship-in" aria-label="Zoom in">+</button>
+      <button type="button" id="ship-fit">Whole ship</button><button type="button" id="ship-tour">Tour</button>
+      <button type="button" id="ship-full" aria-pressed="false">Full screen</button>
+      <span class="hint">The camera tours by itself. Drag, pinch or click to take over; click anyone, or a flying news drone, to read what they think.</span>
+    </div>
+    <div class="ship-stage" id="ship-stage"><div class="fs-bar"><b>The ship</b><button type="button" data-fs="ship">Whole ship</button><button type="button" data-fs="tour">Tour</button><button type="button" data-fs="out" aria-label="Zoom out">&minus;</button><button type="button" data-fs="in" aria-label="Zoom in">+</button><button type="button" data-fs="exit" aria-label="Exit full screen">&#x2715; Exit</button></div>
+      <canvas id="office" width="1600" height="900" role="img" tabindex="0"
+              aria-label="The trading floor as a starship: the FX ring with one room per pair around the Swing Judge's Tribunal, the Nile ring with one room per EGX sector around the High Court pyramid, the bridge, macro core, comms array, order bay, strategy lab, reactor and engines"></canvas>
+    </div>
+  </section>
+
+  <section class="view page" id="view-markets" hidden aria-label="Live markets">
+    <div class="page-head"><h2>Markets</h2><p>TradingView, real time for gold and forex, 15 minutes delayed for the EGX. <label>Chart <select id="live-symbol" aria-label="Chart symbol"></select></label> <span id="live-note"></span></p></div>
+    <div id="tv-tape" class="tv-tape"></div>
+    <div class="live-grid"><div id="tv-chart" class="tv-box tv-chart"></div><div id="tv-ta" class="tv-box tv-ta"></div></div>
+  </section>
+
+  <section class="view page" id="view-page" hidden>
+    <div class="page-head" id="page-head"></div>
+    <div id="panel" role="tabpanel" tabindex="-1"></div>
+  </section>
+</main>
+<footer class="foot" id="foot">Model output for research and education, not financial advice. EGX orders are suggestions you place yourself with your broker. The swing desk's trades are copied onto your live Capital.com account; the EGX portfolio is on paper.</footer>
+
+<dialog id="agent-dialog">
+  <div id="agent-body"></div>
+  <form method="dialog" style="text-align:right;margin-top:12px"><button>Close</button></form>
+</dialog>
+
+<script src="phone.js?v=bd28b83bd6"></script>
+<script src="charts.js?v=bd28b83bd6"></script>
+<script src="office.js?v=bd28b83bd6"></script>
+<script src="valview.js?v=bd28b83bd6"></script>
+<script src="app.js?v=bd28b83bd6"></script>
+</body>
+</html>
