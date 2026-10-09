@@ -1,0 +1,40 @@
+# Trading Floor watchdog (owner, 2026-10-12). It runs on GitHub, not on the laptop: every 30 minutes it checks
+# when the laptop last published this site (it publishes every 15 minutes) and alerts the phone through ntfy when
+# that stops (laptop asleep, off, offline or restarting). NTFY_TOPIC is a repository secret, never in this file.
+name: watchdog
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+    inputs:
+      test:
+        description: Send a test alert
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: When did the laptop last publish?
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TEST: ${{ inputs.test }}
+          PAGE: https://itsahmed13.github.io/trading-floor-live/m.html
+        run: |
+          last=$(git log -1 --format=%ct)
+          age=$(( ($(date +%s) - last) / 60 ))
+          when=$(TZ=Africa/Cairo date -d @$last +'%a %H:%M')
+          echo "last publish $when Cairo time, $age minutes ago"
+          send() { curl -sS -H "Title: $1" -H "Tags: $2" -H "Priority: $3" -H "Click: $PAGE" -d "$4" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null; }
+          if [ "$TEST" = "true" ]; then
+            send "Trading Floor watchdog: test" "white_check_mark" 3 "The watchdog works. The laptop last published at $when ($age min ago). If it stops for 45 minutes you get an alert."
+          elif [ $age -ge 45 ] && [ $age -lt 80 ]; then
+            send "Trading Floor has stopped updating" "rotating_light" 5 "Nothing since $when Cairo time ($age min ago). The laptop is probably asleep, off, offline or restarting, so the agents are paused. Open it (plugged in) and sign in: everything resumes by itself."
+          elif [ $age -ge 360 ] && [ $age -lt 395 ]; then
+            send "Trading Floor still stopped" "warning" 4 "Still nothing since $when Cairo time, over 6 hours. The agents stay paused until the laptop is awake and signed in."
+          fi
